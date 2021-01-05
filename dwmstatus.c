@@ -220,15 +220,15 @@ char *getvolume() {
 }
 
 char *getnetworkstatus() {
-	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18, 1);	
+	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18, 1);
 	if (state == NULL) {
 		return smprintf("Unknown");
 	} else if (!strcmp(state, "COMPLETED")) {
-		char *ssid = readproc("wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33, 1);	
+		char *ssid = readproc("wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33, 1);
 		if (ssid == NULL || strlen(ssid) == 0) {
 			ssid = "----";
 		}
-		char *ip = readproc("wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15, 1);	
+		char *ip = readproc("wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15, 1);
 		if (ip == NULL || strlen(ip) == 0) {
 			ip = "---.---.---.---";
 		}
