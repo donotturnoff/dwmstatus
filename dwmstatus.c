@@ -242,7 +242,7 @@ char *getvolume() {
 	return smprintf("%s", out);
 }
 
-char *getnetworkstatus() {
+char *getnetworkstatus(int show_ip) {
 	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18, 1);
 	if (state == NULL) {
 		return smprintf("Unknown");
@@ -251,11 +251,15 @@ char *getnetworkstatus() {
 		if (ssid == NULL || strlen(ssid) == 0) {
 			ssid = "----";
 		}
-		char *ip = readproc("wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15, 1);
-		if (ip == NULL || strlen(ip) == 0) {
-			ip = "---.---.---.---";
+		if (show_ip) {
+		    char *ip = readproc("wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15, 1);
+		    if (ip == NULL || strlen(ip) == 0) {
+			    ip = "---.---.---.---";
+		    }
+		    return smprintf("%s %s", ssid, ip);
+		}  else {
+            return smprintf("%s", ssid);
 		}
-		return smprintf("%s %s", ssid, ip);
 	} else if (!strcmp(state, "DISCONNECTED")) {
 		return smprintf("Disconnected");
 	} else if (!strcmp(state, "INTERFACE_DISABLED")) {
@@ -285,7 +289,7 @@ int main(void) {
 	}
 
 	for (;;sleep(1)) {
-		network = getnetworkstatus();
+		network = getnetworkstatus(0);
 		avgs = loadavg();
 		bat = getbattery("/sys/class/power_supply/BAT0");
 		vol = getvolume();
