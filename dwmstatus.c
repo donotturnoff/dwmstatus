@@ -242,6 +242,14 @@ char *getvolume() {
 	return smprintf("%s", out);
 }
 
+char *getmpvfile() {
+	char *file = readproc("/usr/bin/mpvcontrol get_file", 100, 1);
+	if (file == NULL) {
+		file = "---";
+	}
+	return smprintf("%s", file);
+}
+
 char *getnetworkstatus(int show_ip) {
 	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18, 1);
 	if (state == NULL) {
@@ -277,6 +285,7 @@ char *getnetworkstatus(int show_ip) {
 
 int main(void) {
 	char *status;
+	char *mpv;
 	char *network;
 	char *avgs;
 	char *bat;
@@ -289,15 +298,17 @@ int main(void) {
 	}
 
 	for (;;sleep(1)) {
+        mpv = getmpvfile();
 		network = getnetworkstatus(0);
 		avgs = loadavg();
 		bat = getbattery("/sys/class/power_supply/BAT0");
 		vol = getvolume();
 		tmldn = mktimes("%a %d %b %H:%M:%S", tzlondon);
 
-		status = smprintf(" [%s] [%s] [%s] [%s] [%s]",
-				network, avgs, bat, vol, tmldn);
+		status = smprintf(" [%s] [%s] [%s] [%s] [%s] [%s]",
+				mpv, network, avgs, bat, vol, tmldn);
 		setstatus(status);
+        free(mpv);
 		free(network);
 		free(avgs);
 		free(bat);
