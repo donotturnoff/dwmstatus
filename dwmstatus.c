@@ -94,13 +94,24 @@ void setstatus(char *str) {
 	XSync(dpy, False);
 }
 
-char *loadavg(void) {
+char *loadavg3(void) {
 	double avgs[3];
 
 	if (getloadavg(avgs, 3) < 0)
 		return smprintf("");
 
 	return smprintf("%.2f %.2f %.2f", avgs[0], avgs[1], avgs[2]);
+}
+
+char *loadavg(void) {
+	double avgs[2];
+
+	if (getloadavg(avgs, 2) < 0)
+		return smprintf("");
+
+    char direction = (avgs[0] > avgs[1]) ? '+' : ((avgs[0] < avgs[1]) ? '-' : L'=');
+
+	return smprintf("%.2f%c", avgs[0], direction);
 }
 
 char *readfile(char *base, char *file) {
