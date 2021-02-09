@@ -1,3 +1,4 @@
+
 NAME = dwmstatus
 VERSION = 1.0
 
