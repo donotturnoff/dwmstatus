@@ -27,12 +27,21 @@ static Display *dpy;
 
 void notify(char *msg) {
 	int msg_len = strlen(msg);
-	char command[6 + msg_len + 2];
+	char *command = (char *) malloc((9 + msg_len) * sizeof(char));
+	if (!command) return;
 	strcpy(command, "herbe ");
 	strcat(command, msg);
 	strcat(command, " &");
 	system(command);
-	return;
+	free(command);
+}
+
+void denotify(void) {
+    char *command = (char *) malloc(21 * sizeof(char));
+    if (!command) return;
+    strcpy(command, "pkill -SIGUSR1 herbe");
+    system(command);
+    free(command);
 }
 
 char *smprintf(char *fmt, ...) {
@@ -168,6 +177,9 @@ char *getbattery(char *base) {
 	}
 	if (level <= BATTERY_CRITICAL_THRESHOLD && prev_battery_level > BATTERY_CRITICAL_THRESHOLD) {
 		notify("\"Battery critically low\"");
+	}
+	if (status == '+') {
+        denotify();
 	}
 	prev_battery_level = level;
 
