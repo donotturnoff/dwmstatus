@@ -274,7 +274,7 @@ char *getvolume() {
 }
 
 char *getmpvfile() {
-	char *file = readproc("/usr/bin/mpvcontrol get_file", 100, 1);
+	char *file = readproc("/usr/bin/mpvctl get_file", 100, 1);
 	if (file == NULL) {
 		file = "---";
 	}
