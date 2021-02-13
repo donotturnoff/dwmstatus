@@ -116,7 +116,7 @@ char *mktimes(char *fmt, char *tzname) {
 		return smprintf("");
 	}
 
-	return smprintf("%s", buf);
+	return smprintf(" [%s]", buf);
 }
 
 void setstatus(char *str) {
@@ -130,7 +130,7 @@ char *loadavg3(void) {
 	if (getloadavg(avgs, 3) < 0)
 		return smprintf("");
 
-	return smprintf("%.2f %.2f %.2f", avgs[0], avgs[1], avgs[2]);
+	return smprintf(" [%.2f %.2f %.2f]", avgs[0], avgs[1], avgs[2]);
 }
 
 char *loadavg(void) {
@@ -141,7 +141,7 @@ char *loadavg(void) {
 
     char direction = (avgs[0] > avgs[1]) ? '+' : ((avgs[0] < avgs[1]) ? '-' : L'=');
 
-	return smprintf("%.2f%c", avgs[0], direction);
+	return smprintf(" [%.2f%c]", avgs[0], direction);
 }
 
 char *readfile(char *base, char *file) {
@@ -175,7 +175,7 @@ char *getbattery(char *base) {
 		return smprintf("");
 	if (co[0] != '1') {
 		free(co);
-		return smprintf("not present");
+		return smprintf(" [No battery]");
 	}
 	free(co);
 
@@ -210,7 +210,7 @@ char *getbattery(char *base) {
     free(co);
 
 	if (remcap < 0 || descap < 0)
-		return smprintf("invalid");
+		return smprintf(" [Invalid battery level]");
 
 	float level = ((float) remcap / (float) descap) * 100;
 
@@ -225,7 +225,7 @@ char *getbattery(char *base) {
 	}
 	prev_battery_level = level;
 
-	return smprintf("%.0f%%%c", level, status);
+	return smprintf(" [%.0f%%%c]", level, status);
 }
 
 char *gettemperature(char *base, char *sensor) {
@@ -234,7 +234,7 @@ char *gettemperature(char *base, char *sensor) {
 	co = readfile(base, sensor);
 	if (co == NULL)
 		return smprintf("");
-	return smprintf("%02.0f°C", atof(co) / 1000);
+	return smprintf(" [%02.0f°C]", atof(co) / 1000);
 }
 
 char *readproc(char *cmd, int size, int stripfinal) {
@@ -267,19 +267,20 @@ char *readproc(char *cmd, int size, int stripfinal) {
 
 char *getvolume() {
 	char *out = readproc("/usr/local/bin/pamixer --get-volume-human", 6, 1);
-	if (out == NULL) {
-		out = "---%";
-	}
-    return out;
+	char *ret = out ? smprintf(" [%s]", out) : smprintf("[--%%]");
+    free(out);
+    return ret;
 }
 
 char *getmpvfile() {
 	char *file = readproc("/usr/bin/mpvctl get_file", 100, 1);
 	if (file == NULL) {
-		file = "---";
+		file = "";
 	}
-    char *ret = remove_ext(file, '.', '/');
+    char *trimmed = remove_ext(file, '.', '/');
+    char *ret = (strlen(trimmed) == 0) ? smprintf("") : smprintf(" [%s]", trimmed);
     free(file);
+    free(trimmed);
     return ret;
 }
 
@@ -287,7 +288,7 @@ char *getnetworkstatus(int show_ip) {
     char *ret;
 	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18, 1);
 	if (state == NULL) {
-		ret = smprintf("Unknown");
+		ret = smprintf(" [Unknown]");
 	} else if (!strcmp(state, "COMPLETED")) {
 		char *ssid = readproc("wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33, 1);
 		if (ssid == NULL || strlen(ssid) == 0) {
@@ -298,24 +299,24 @@ char *getnetworkstatus(int show_ip) {
 		    if (ip == NULL || strlen(ip) == 0) {
 			    ip = "---.---.---.---";
 		    }
-		    ret = smprintf("%s %s", ssid, ip);
+		    ret = smprintf(" [%s %s]", ssid, ip);
             free(ip);
 		}  else {
-            ret = smprintf("%s", ssid);
+            ret = smprintf(" [%s]", ssid);
 		}
         free(ssid);
 	} else if (!strcmp(state, "DISCONNECTED")) {
-		ret = smprintf("Disconnected");
+		ret = smprintf(" [Disconnected]");
 	} else if (!strcmp(state, "INTERFACE_DISABLED")) {
-		ret = smprintf("Disabled");
+		ret = smprintf(" [Disabled]");
 	} else if (!strcmp(state, "SCANNING")) {
-		ret = smprintf("Scanning");
+		ret = smprintf(" [Scanning]");
 	} else if (!strcmp(state, "ASSOCIATING")) {
-		ret = smprintf("Associating");
+		ret = smprintf(" [Associating]");
 	} else if (!strcmp(state, "4WAY_HANDSHAKE")) {
-		ret = smprintf("Handshake");
+		ret = smprintf(" [Handshake]");
 	} else {
-		ret = smprintf(state);
+		ret = smprintf(" [", state, "]");
 	}
     free(state);
     return ret;
@@ -341,7 +342,7 @@ int main(void) {
 		vol = getvolume();
 		tmldn = mktimes("%a %d %b %H:%M:%S", tzlondon);
 
-		status = smprintf(" [%s] [%s] [%s] [%s] [%s]",
+		status = smprintf("%s%s%s%s%s",
 				mpv, network, bat, vol, tmldn);
 		setstatus(status);
         free(mpv);
