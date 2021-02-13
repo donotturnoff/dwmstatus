@@ -12,6 +12,7 @@
 #include <strings.h>
 #include <sys/time.h>
 #include <time.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <X11/Xlib.h>
@@ -322,6 +323,26 @@ char *getnetworkstatus(int show_ip) {
     return ret;
 }
 
+//https://stackoverflow.com/a/1157217
+int msleep(long msec) {
+    struct timespec ts;
+    int res;
+
+    if (msec < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ts.tv_sec = msec / 1000;
+    ts.tv_nsec = (msec % 1000) * 1000000;
+
+    do {
+        res = nanosleep(&ts, &ts);
+    } while (res && errno == EINTR);
+
+    return res;
+}
+
 int main(void) {
 	char *status;
 	char *mpv;
@@ -335,7 +356,7 @@ int main(void) {
 		return 1;
 	}
 
-	for (;;sleep(1)) {
+	for (;;msleep(200)) {
         mpv = getmpvfile();
 		network = getnetworkstatus(0);
 		bat = getbattery("/sys/class/power_supply/BAT0");
