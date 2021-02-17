@@ -209,28 +209,23 @@ char *getbattery(char *base) {
 	return smprintf(" [%.0f%%%c]", level, status);
 }
 
-char *readproc(char *cmd, int size, int stripfinal) {
+char *readproc(char *cmd, int size) {
 	FILE *p = popen(cmd, "r");
 	char *out;
 	size_t n = 0;
 	int c;
 
-	if (p == NULL) {
-		return NULL; //could not open file
-	}
+	if (!p) return NULL; //could not open file
 
-	out = malloc(size);
+	out = (char *) malloc(size);
 
 	while ((c = fgetc(p)) != EOF && n < size-1) {
 		out[n++] = (char) c;
 	}
 
 	// don't forget to terminate with the null character
-	if (stripfinal && n > 0) {
-		out[n-1] = '\0';
-	} else {
-		out[n] = '\0';
-	}
+	if (n > 0) out[n-1] = '\0';
+	else out[n] = '\0';
 
 	pclose(p);
 
@@ -238,29 +233,27 @@ char *readproc(char *cmd, int size, int stripfinal) {
 }
 
 char *getmpvfile() {
-	char *file = readproc("/usr/bin/mpvctl get_file", 100, 1);
-	if (file == NULL) {
-		file = smprintf("");
-	}
+	char *file = readproc("/usr/bin/mpvctl get_file", 100);
+	if (!file) file = smprintf("");
     char *trimmed = remove_ext(file, '.', '/');
     char *ret = (strlen(trimmed) == 0) ? smprintf("") : smprintf(" [%s]", trimmed);
-    if (file) free(file);
+    free(file);
     free(trimmed);
     return ret;
 }
 
 char *getnetworkstatus(int show_ip) {
     char *ret;
-	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18, 1);
+	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18);
 	if (state == NULL) {
 		ret = smprintf(" [Unknown]");
 	} else if (!strcmp(state, "COMPLETED")) {
-		char *ssid = readproc("/usr/sbin/wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33, 1);
+		char *ssid = readproc("/usr/sbin/wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33);
 		if (ssid == NULL || strlen(ssid) == 0) {
 			ssid = smprintf("----");
 		}
 		if (show_ip) {
-		    char *ip = readproc("/usr/sbin/wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15, 1);
+		    char *ip = readproc("/usr/sbin/wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15);
 		    if (ip == NULL || strlen(ip) == 0) {
 			    ip = smprintf("---.---.---.---");
 		    }
@@ -299,13 +292,13 @@ int main(void) {
 		return 1;
 	}
 
-    int counter = 0;
+    int blink = 0;
 
-	for (;counter < 100;sleep(1)) {
+	for (;;sleep(1)) {
         mpv = getmpvfile();
 		network = getnetworkstatus(0);
 		bat = getbattery("/sys/class/power_supply/BAT0");
-		tmldn = mktimes("%a %d %b %H:%M", tzlondon);
+		tmldn = blink ? mktimes("%a %d %b %H %M", tzlondon) : mktimes("%a %d %b %H:%M", tzlondon);
 
 		status = smprintf("%s%s%s%s%s", mpv, network, bat, tmldn);
 		setstatus(status);
@@ -314,7 +307,7 @@ int main(void) {
 		free(bat);
 		free(tmldn);
 		free(status);
-        counter++;
+        blink = !blink;
 	}
 
 	XCloseDisplay(dpy);
