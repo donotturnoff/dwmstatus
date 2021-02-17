@@ -20,7 +20,7 @@
 #define BATTERY_WARNING_THRESHOLD 10
 #define BATTERY_CRITICAL_THRESHOLD 7
 
-char *tzlondon = "Europe/London";
+char *tz = "Europe/London";
 
 float prev_battery_level = 100;
 
@@ -101,12 +101,11 @@ void settz(char *tzname) {
 	setenv("TZ", tzname, 1);
 }
 
-char *mktimes(char *fmt, char *tzname) {
+char *mktimes(char *fmt) {
 	char buf[129];
 	time_t tim;
 	struct tm *timtm;
 
-	settz(tzname);
 	tim = time(NULL);
 	timtm = localtime(&tim);
 	if (timtm == NULL)
@@ -287,6 +286,8 @@ int main(void) {
 	char *bat;
 	char *tmldn;
 
+	settz(tz);
+
 	if (!(dpy = XOpenDisplay(NULL))) {
 		fprintf(stderr, "dwmstatus: cannot open display.\n");
 		return 1;
@@ -298,7 +299,7 @@ int main(void) {
         mpv = getmpvfile();
 		network = getnetworkstatus(0);
 		bat = getbattery("/sys/class/power_supply/BAT0");
-		tmldn = blink ? mktimes("%a %d %b %H %M", tzlondon) : mktimes("%a %d %b %H:%M", tzlondon);
+		tmldn = blink ? mktimes("%a %d %b %H %M") : mktimes("%a %d %b %H:%M");
 
 		status = smprintf("%s%s%s%s%s", mpv, network, bat, tmldn);
 		setstatus(status);
