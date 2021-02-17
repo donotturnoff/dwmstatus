@@ -125,26 +125,6 @@ void setstatus(char *str) {
 	XSync(dpy, False);
 }
 
-char *loadavg3(void) {
-	double avgs[3];
-
-	if (getloadavg(avgs, 3) < 0)
-		return smprintf("");
-
-	return smprintf(" [%.2f %.2f %.2f]", avgs[0], avgs[1], avgs[2]);
-}
-
-char *loadavg(void) {
-	double avgs[2];
-
-	if (getloadavg(avgs, 2) < 0)
-		return smprintf("");
-
-    char direction = (avgs[0] > avgs[1]) ? '+' : ((avgs[0] < avgs[1]) ? '-' : L'=');
-
-	return smprintf(" [%.2f%c]", avgs[0], direction);
-}
-
 char *readfile(char *base, char *file) {
 	char *path, line[513];
 	FILE *fd;
@@ -229,15 +209,6 @@ char *getbattery(char *base) {
 	return smprintf(" [%.0f%%%c]", level, status);
 }
 
-char *gettemperature(char *base, char *sensor) {
-	char *co;
-
-	co = readfile(base, sensor);
-	if (co == NULL)
-		return smprintf("");
-	return smprintf(" [%02.0f°C]", atof(co) / 1000);
-}
-
 char *readproc(char *cmd, int size, int stripfinal) {
 	FILE *p = popen(cmd, "r");
 	char *out;
@@ -250,7 +221,7 @@ char *readproc(char *cmd, int size, int stripfinal) {
 
 	out = malloc(size);
 
-	while ((c = fgetc(p)) != EOF) {
+	while ((c = fgetc(p)) != EOF && n < size-1) {
 		out[n++] = (char) c;
 	}
 
@@ -266,21 +237,14 @@ char *readproc(char *cmd, int size, int stripfinal) {
 	return out;
 }
 
-char *getvolume() {
-	char *out = readproc("/usr/local/bin/pamixer --get-volume-human", 6, 1);
-	char *ret = out ? smprintf(" [%s]", out) : smprintf("[--%%]");
-    free(out);
-    return ret;
-}
-
 char *getmpvfile() {
 	char *file = readproc("/usr/bin/mpvctl get_file", 100, 1);
 	if (file == NULL) {
-		file = "";
+		file = smprintf("");
 	}
     char *trimmed = remove_ext(file, '.', '/');
     char *ret = (strlen(trimmed) == 0) ? smprintf("") : smprintf(" [%s]", trimmed);
-    free(file);
+    if (file) free(file);
     free(trimmed);
     return ret;
 }
@@ -291,14 +255,14 @@ char *getnetworkstatus(int show_ip) {
 	if (state == NULL) {
 		ret = smprintf(" [Unknown]");
 	} else if (!strcmp(state, "COMPLETED")) {
-		char *ssid = readproc("wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33, 1);
+		char *ssid = readproc("/usr/sbin/wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33, 1);
 		if (ssid == NULL || strlen(ssid) == 0) {
-			ssid = "----";
+			ssid = smprintf("----");
 		}
 		if (show_ip) {
-		    char *ip = readproc("wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15, 1);
+		    char *ip = readproc("/usr/sbin/wpa_cli status | grep \"^ip_address\" | cut -d'=' -f 2", 15, 1);
 		    if (ip == NULL || strlen(ip) == 0) {
-			    ip = "---.---.---.---";
+			    ip = smprintf("---.---.---.---");
 		    }
 		    ret = smprintf(" [%s %s]", ssid, ip);
             free(ip);
@@ -323,32 +287,11 @@ char *getnetworkstatus(int show_ip) {
     return ret;
 }
 
-//https://stackoverflow.com/a/1157217
-int msleep(long msec) {
-    struct timespec ts;
-    int res;
-
-    if (msec < 0) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    ts.tv_sec = msec / 1000;
-    ts.tv_nsec = (msec % 1000) * 1000000;
-
-    do {
-        res = nanosleep(&ts, &ts);
-    } while (res && errno == EINTR);
-
-    return res;
-}
-
 int main(void) {
 	char *status;
 	char *mpv;
 	char *network;
 	char *bat;
-	char *vol;
 	char *tmldn;
 
 	if (!(dpy = XOpenDisplay(NULL))) {
@@ -356,22 +299,22 @@ int main(void) {
 		return 1;
 	}
 
-	for (;;msleep(200)) {
+    int counter = 0;
+
+	for (;counter < 100;sleep(1)) {
         mpv = getmpvfile();
 		network = getnetworkstatus(0);
 		bat = getbattery("/sys/class/power_supply/BAT0");
-		vol = getvolume();
-		tmldn = mktimes("%a %d %b %H:%M:%S", tzlondon);
+		tmldn = mktimes("%a %d %b %H:%M", tzlondon);
 
-		status = smprintf("%s%s%s%s%s",
-				mpv, network, bat, vol, tmldn);
+		status = smprintf("%s%s%s%s%s", mpv, network, bat, tmldn);
 		setstatus(status);
         free(mpv);
 		free(network);
 		free(bat);
-		free(vol);
 		free(tmldn);
 		free(status);
+        counter++;
 	}
 
 	XCloseDisplay(dpy);
