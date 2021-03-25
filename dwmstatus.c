@@ -193,6 +193,10 @@ char *getbattery(char *base) {
 		return smprintf(" [Invalid battery level]");
 
 	float level = ((float) remcap / (float) descap) * 100;
+    level = level > 100 ? 100 : level;
+    if (level == 100) {
+        status = '=';
+    }
 
 	if (level <= BATTERY_WARNING_THRESHOLD && prev_battery_level > BATTERY_WARNING_THRESHOLD) {
 		notify("\"Battery low\"");
@@ -243,7 +247,7 @@ char *getmpvfile() {
 
 char *getnetworkstatus(int show_ip) {
     char *ret;
-	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 18);
+	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 24);
 	if (state == NULL) {
 		ret = smprintf(" [Unknown]");
 	} else if (!strcmp(state, "COMPLETED")) {
@@ -273,7 +277,7 @@ char *getnetworkstatus(int show_ip) {
 	} else if (!strcmp(state, "4WAY_HANDSHAKE")) {
 		ret = smprintf(" [Handshake]");
 	} else {
-		ret = smprintf(" [", state, "]");
+		ret = smprintf(" [%s]", state);
 	}
     free(state);
     return ret;
