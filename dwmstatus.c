@@ -116,7 +116,7 @@ char *mktimes(char *fmt) {
 		return smprintf("");
 	}
 
-	return smprintf(" [%s]", buf);
+	return smprintf("%s", buf);
 }
 
 void setstatus(char *str) {
@@ -155,7 +155,7 @@ char *getbattery(char *base) {
 		return smprintf("");
 	if (co[0] != '1') {
 		free(co);
-		return smprintf(" [No battery]");
+		return smprintf("No battery");
 	}
 	free(co);
 
@@ -190,7 +190,7 @@ char *getbattery(char *base) {
     free(co);
 
 	if (remcap < 0 || descap < 0)
-		return smprintf(" [Invalid battery level]");
+		return smprintf("Invalid battery level");
 
 	float level = ((float) remcap / (float) descap) * 100;
     level = level > 100 ? 100 : level;
@@ -209,7 +209,7 @@ char *getbattery(char *base) {
 	}
 	prev_battery_level = level;
 
-	return smprintf(" [%.0f%%%c]", level, status);
+	return smprintf("%.0f%%%c", level, status);
 }
 
 char *readproc(char *cmd, int size) {
@@ -237,9 +237,9 @@ char *readproc(char *cmd, int size) {
 
 char *getmpvfile() {
 	char *file = readproc("/usr/bin/mpvctl get_file", 100);
-	if (!file) file = smprintf("");
+	if (!file) return NULL;
     char *trimmed = remove_ext(file, '.', '/');
-    char *ret = (strlen(trimmed) == 0) ? smprintf("") : smprintf(" [%s]", trimmed);
+    char *ret = (strlen(trimmed) == 0) ? NULL : smprintf("%s", trimmed);
     free(file);
     free(trimmed);
     return ret;
@@ -249,7 +249,7 @@ char *getnetworkstatus(int show_ip) {
     char *ret;
 	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 24);
 	if (state == NULL) {
-		ret = smprintf(" [Unknown]");
+		ret = smprintf("Unknown");
 	} else if (!strcmp(state, "COMPLETED")) {
 		char *ssid = readproc("/usr/sbin/wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33);
 		if (ssid == NULL || strlen(ssid) == 0) {
@@ -260,24 +260,24 @@ char *getnetworkstatus(int show_ip) {
 		    if (ip == NULL || strlen(ip) == 0) {
 			    ip = smprintf("---.---.---.---");
 		    }
-		    ret = smprintf(" [%s %s]", ssid, ip);
+		    ret = smprintf("%s %s", ssid, ip);
             free(ip);
 		}  else {
-            ret = smprintf(" [%s]", ssid);
+            ret = smprintf("%s", ssid);
 		}
         free(ssid);
 	} else if (!strcmp(state, "DISCONNECTED")) {
-		ret = smprintf(" [Disconnected]");
+		ret = smprintf("Disconnected");
 	} else if (!strcmp(state, "INTERFACE_DISABLED")) {
-		ret = smprintf(" [Disabled]");
+		ret = smprintf("Disabled");
 	} else if (!strcmp(state, "SCANNING")) {
-		ret = smprintf(" [Scanning]");
+		ret = smprintf("Scanning");
 	} else if (!strcmp(state, "ASSOCIATING")) {
-		ret = smprintf(" [Associating]");
+		ret = smprintf("Associating");
 	} else if (!strcmp(state, "4WAY_HANDSHAKE")) {
-		ret = smprintf(" [Handshake]");
+		ret = smprintf("Handshake");
 	} else {
-		ret = smprintf(" [%s]", state);
+		ret = smprintf("%s", state);
 	}
     free(state);
     return ret;
@@ -305,9 +305,13 @@ int main(void) {
 		bat = getbattery("/sys/class/power_supply/BAT0");
 		tmldn = blink ? mktimes("%a %d %b %H %M") : mktimes("%a %d %b %H:%M");
 
-		status = smprintf("%s%s%s%s%s", mpv, network, bat, tmldn);
+        if (mpv) {
+		    status = smprintf(" [%s] [%s] [%s] [%s]", mpv, network, bat, tmldn);
+            free(mpv);
+        } else {
+		    status = smprintf(" [%s] [%s] [%s]", network, bat, tmldn);
+        }
 		setstatus(status);
-        free(mpv);
 		free(network);
 		free(bat);
 		free(tmldn);
