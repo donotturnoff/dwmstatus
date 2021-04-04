@@ -17,6 +17,7 @@
 #include <sys/wait.h>
 #include <X11/Xlib.h>
 
+#define BLOCKS_COUNT 4
 #define BATTERY_WARNING_THRESHOLD 10
 #define BATTERY_CRITICAL_THRESHOLD 7
 
@@ -152,10 +153,10 @@ char *getbattery(char *base) {
 
 	co = readfile(base, "present");
 	if (co == NULL)
-		return smprintf("");
+		return NULL;
 	if (co[0] != '1') {
 		free(co);
-		return smprintf("No battery");
+		return NULL;
 	}
 	free(co);
 
@@ -249,7 +250,7 @@ char *getnetworkstatus(int show_ip) {
     char *ret;
 	char *state = readproc("/usr/sbin/wpa_cli status | grep \"^wpa_state\" | cut -d'=' -f 2", 24);
 	if (state == NULL) {
-		ret = smprintf("Unknown");
+		ret = NULL;
 	} else if (!strcmp(state, "COMPLETED")) {
 		char *ssid = readproc("/usr/sbin/wpa_cli status | grep \"^ssid\" | cut -d'=' -f 2", 33);
 		if (ssid == NULL || strlen(ssid) == 0) {
@@ -284,11 +285,8 @@ char *getnetworkstatus(int show_ip) {
 }
 
 int main(void) {
+    char *blocks[BLOCKS_COUNT];
 	char *status;
-	char *mpv;
-	char *network;
-	char *bat;
-	char *tmldn;
 
 	settz(tz);
 
@@ -300,21 +298,20 @@ int main(void) {
     int blink = 0;
 
 	for (;;sleep(1)) {
-        mpv = getmpvfile();
-		network = getnetworkstatus(0);
-		bat = getbattery("/sys/class/power_supply/BAT0");
-		tmldn = blink ? mktimes("%a %d %b %H %M") : mktimes("%a %d %b %H:%M");
+		blocks[0] = blink ? mktimes("%a %d %b %H %M") : mktimes("%a %d %b %H:%M");
+		blocks[1] = getbattery("/sys/class/power_supply/BAT0");
+		blocks[2] = getnetworkstatus(0);
+        blocks[3] = getmpvfile();
 
-        if (mpv) {
-		    status = smprintf(" [%s] [%s] [%s] [%s]", mpv, network, bat, tmldn);
-            free(mpv);
-        } else {
-		    status = smprintf(" [%s] [%s] [%s]", network, bat, tmldn);
+	    status = "";
+        for (int i = 0; i < BLOCKS_COUNT; i++) {
+            char *block = blocks[i];
+            if (block) {
+                status = smprintf(" [%s]%s", block, status);
+                free(block);
+            }
         }
 		setstatus(status);
-		free(network);
-		free(bat);
-		free(tmldn);
 		free(status);
         blink = !blink;
 	}
